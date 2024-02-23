@@ -3,17 +3,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from math import sin, cos, sqrt, atan2, radians
 
-
 app = Flask(__name__)
 
-
-db_name = "foodtrucktest" # change name later
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///foodtrucktest.db' #here is where we can connect the database
+db_name = "foodtrucktest" 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///foodtrucktest.db' 
 db = SQLAlchemy(app)
 CORS(app, resources={"*": {"origins": "http://localhost:3000"}})
-
-# foodtrucktest.db
-# come back to this, what is best practices for string max length
 
 class Data(db.Model):
     locationId = db.Column(db.Integer, primary_key=True)
@@ -33,11 +28,12 @@ try:
     with app.app_context():
         db.create_all()
 except Exception as e:
-    print(f"Error creating database tables: {e}")
+    print(f"Error creating database table: {e}")
 
-# I guess you could display the distance 
+# Method: Calculate distance 
+# Params: Truck lat/lon and User given lat/on
+# Return: Distance in km between truck and user coordinates
 def calculateDistance(truck_lat, truck_lon, user_lat, user_lon):
-    # Approximate radius of earth in km
     R = 6373.0
     lat1 = radians(float(user_lat))
     lon1 = radians(float(user_lon))
@@ -48,22 +44,21 @@ def calculateDistance(truck_lat, truck_lon, user_lat, user_lon):
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     distance = R * c
-    # if the distance is more than 5km then give back otherwise don't
     return distance
 
-
-# This method gets the 5 closest trucks based on users location
+# Method: Get data
+# Return: First 5 closest trucks in 5km radius
 @app.route('/data', methods=['GET'])
 def get_data():
     user_lat = request.args.get("lat")
-    user_lon = request.args.get("long")
+    user_lon = request.args.get("lon")
 
-    user_lat =  37.802567414124184
-    user_lon = -122.4483553855345
-
+    # Tester lat and lon
+    # user_lat =  37.802567414124184
+    # user_lon = -122.4483553855345
+    
     data = Data.query.all()
  
-     # okay come back to this and filter by 5 closest trucks
     filtered_data = []
     for truck in data:
         distance = calculateDistance(truck.Latitude, truck.Longitude, user_lat, user_lon)
@@ -72,23 +67,15 @@ def get_data():
                                  "locationDescription": truck.LocationDescription, "address": truck.Address,
                                  "status": truck.Status, "menu": truck.FoodItems, "x_coordinate": truck.X,
                                  "y_coordinate": truck.Y, "latitude": truck.Latitude,
-                                 "longitude": truck.Longitude, "coordinates": truck.Location})
-            print('more than 5 km')
-            print(f"Truck {truck.locationId} is within 5km ({distance} km away)")
+                                 "longitude": truck.Longitude, "coordinates": truck.Location,
+                                 "distance": distance})
 
-    data_json = json.dumps(filtered_data)
-    return jsonify(data_json)
+    # Sort by distance and get first five trucks  
+    sorted_data = sorted(filtered_data, key=lambda x: x["distance"])
+    closest_trucks = sorted_data[:5]
 
-
-# only do this if you finish
-# Get the trucks in radius distance
-@app.route('/data', methods=['GET'])
-def get_trucks_radius():
-    radius = request.args.get("radius")
-
-
-
+    data_json = json.dumps(closest_trucks)
+    return data_json
 
 if __name__ == '__main__':
-    print('Starting here')
     app.run(debug=True)

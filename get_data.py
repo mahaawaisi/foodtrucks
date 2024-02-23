@@ -1,14 +1,15 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-# Read data from spreadsheet into a DataFrame
+# Read data from csv into a database
 db_name = "foodtrucktest"
 df = pd.read_csv('food-truck-data.csv')
 
-# Prepare data (if needed)
+# Columns needed
 columns = ['locationid', 'Applicant', 'FacilityType', 'LocationDescription', 'Address', 'Status', 'FoodItems',
            'X', 'Y', 'Latitude', 'Longitude', 'Location']
 
+# Filter data
 df_filtered = df[columns]
 
 # Set up SQLite database

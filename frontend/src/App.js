@@ -1,60 +1,144 @@
 import React, { useState } from "react";
 import axios from 'axios';
-
+import './App.css'
 
 const LocationForm = ({ onSubmit }) => {
-  const [location, setLocation] = useState("");
-  const [radius, setRadius] = useState("");
+  const [latitude, setLat] = useState("");
+  const [longitude, setLon] = useState("");
+  const [truckData, setTruckData] = useState(null);
+  const [buttonClicked, setButtonClicked] = useState(false);
 
-  const handleGetLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-       async (position) => {
-          setLocation(`${position.coords.latitude},${position.coords.longitude}`);
-          try{
-            const response = await axios.get("http://localhost:5000/data", {params:{lat: position.coords.latitude, long:position.coords.longitude}});
-          }catch(error){
-            console.error("Error fetching food trucks: ", error);
-          }
-        },
-        (error) => {
-          console.error("Error getting user location:", error);
-        }
-      );
+  const handleGetLocation = async (useCurrentLocation) => {
+    setTruckData(null);
+    setButtonClicked(true);
+
+    if (useCurrentLocation) {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const { latitude, longitude } = position.coords;
+          axios.get('http://localhost:5000/data', {
+            params: {
+              lat: latitude,
+              lon: longitude
+            }
+          })
+          .then((response) => {
+            if (Array.isArray(response.data)) {
+              // Transform data so we can display
+              const transformedData = response.data.map(truck => ({
+                id: truck.locationid,
+                name: truck.name,
+                address: truck.address,
+                menu: truck.menu,
+                status: truck.status,
+                x_coordinate: truck.X,
+                y_coordinate: truck.Y,
+                latitude: truck.Latitude,
+                longitude: truck.Longitude,
+                coordinates: truck.Location,
+                distance: truck.distance,
+              }));
+              setTruckData(transformedData);
+            } else {
+              console.error("Invalid truck data:", response.data);
+            }
+          })
+          .catch((error) => {
+            console.error("Error getting food truck data: ", error);
+          });
+        });
+      } else {
+        alert("Location permissions are not enabled by your browser.");
+      }
     } else {
-      console.error("Geolocation is not supported by this browser");
+      const lat = latitude;
+      const lon = longitude;
+      axios.get('http://localhost:5000/data', {
+        params: {
+          lat: lat,
+          lon: lon
+        }
+      })
+      .then((response) => {
+        // Handle response
+        if (Array.isArray(response.data)) {
+          const transformedData = response.data.map(truck => ({
+            id: truck.locationid,
+            name: truck.name,
+            address: truck.address,
+            menu: truck.menu,
+            status: truck.status,
+            x_coordinate: truck.X,
+            y_coordinate: truck.Y,
+            latitude: truck.Latitude,
+            longitude: truck.Longitude,
+            coordinates: truck.Location,
+            distance: truck.distance,
+          }));
+          setTruckData(transformedData);
+          console.log(transformedData);
+        } else {
+          console.error("Invalid truck data:", response.data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting food truck data: ", error);
+      });
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ location, radius });
+    handleGetLocation(false); 
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Location:
-        <input
-          type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-      </label>
-      <label>
-        Radius (miles):
-        <input
-          type="number"
-          value={radius}
-          onChange={(e) => setRadius(e.target.value)}
-        />
-      </label>
-      <button type="submit">Find Food Trucks</button>
-      <button type="button" onClick={handleGetLocation}>
-      Use my current location
+  <div className="container">
+    <h1 className="heading">Let's search for food trucks near you!</h1>
+    <div className="button-container">
+      <button type="button" onClick={() => handleGetLocation(true)}>Use current location</button>
+      <span className="button-text">OR</span>
+      <form onSubmit={handleSubmit}>
+        <label>
+          Latitude:
+          <input
+            type="text"
+            value={latitude}
+            onChange={(e) => setLat(e.target.value)}
+          />
+        </label>
+        <label>
+          Longitude:
+          <input
+            type="text"
+            value={longitude}
+            onChange={(e) => setLon(e.target.value)}
+          />
+        </label>
+        <button type="submit">
+          Use coordinates
       </button>
-    </form>
-    
+      </form>
+    </div>
+      {(buttonClicked && truckData && truckData.length > 0 ) && (
+        <div>
+          <h2>Food Trucks Near You</h2>
+          <ul>
+            {truckData.map((truck, index) => (
+              <div key={index}>
+                <p><strong>{truck.name}</strong></p>
+                <p><strong>Address:</strong> {truck.address}</p>
+                <p><strong>Menu:</strong> {truck.menu}</p>
+                <p><strong>Distance from you:</strong> {truck.distance.toFixed(2)} km away</p>
+              </div>
+            ))}
+          </ul>
+        </div>
+      )}
+      {buttonClicked && truckData && truckData.length === 0 && (
+        <p>No food trucks near you.</p>
+      )}
+    </div>
   );
 };
 
