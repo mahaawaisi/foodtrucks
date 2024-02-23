@@ -1,6 +1,7 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, json
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from math import sin, cos, sqrt, atan2, radians
 
 
 app = Flask(__name__)
@@ -34,22 +35,59 @@ try:
 except Exception as e:
     print(f"Error creating database tables: {e}")
 
-@app.route('/test')
-def test():
-    print('in test')
-    return jsonify({ "message": "Test route works!" })
+# I guess you could display the distance 
+def calculateDistance(truck_lat, truck_lon, user_lat, user_lon):
+    # Approximate radius of earth in km
+    R = 6373.0
+    lat1 = radians(float(user_lat))
+    lon1 = radians(float(user_lon))
+    lat2 = radians(truck_lat)
+    lon2 = radians(truck_lon)
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    # if the distance is more than 5km then give back otherwise don't
+    return distance
 
+
+# This method gets the 5 closest trucks based on users location
 @app.route('/data', methods=['GET'])
 def get_data():
-    print('HERE')
+    user_lat = request.args.get("lat")
+    user_lon = request.args.get("long")
+
+    user_lat =  37.802567414124184
+    user_lon = -122.4483553855345
+
     data = Data.query.all()
-    data_json = [{"locationid": d.locationId, "name": d.Applicant, "type": d.FacilityType, 
-                  "locationDescription": d.LocationDescription, "address": d.Address,
-                  "status": d.Status, "menu": d.FoodItems, "x_coordinate": d.X,
-                  "y_coordinate": d.Y, "latitude": d.Latitude,
-                  "longitude": d.Longitude, "coordinates": d.Location} for d in data]
-    print('hi')
+ 
+     # okay come back to this and filter by 5 closest trucks
+    filtered_data = []
+    for truck in data:
+        distance = calculateDistance(truck.Latitude, truck.Longitude, user_lat, user_lon)
+        if(distance <= 5):
+            filtered_data.append({"locationid": truck.locationId, "name": truck.Applicant, "type": truck.FacilityType,
+                                 "locationDescription": truck.LocationDescription, "address": truck.Address,
+                                 "status": truck.Status, "menu": truck.FoodItems, "x_coordinate": truck.X,
+                                 "y_coordinate": truck.Y, "latitude": truck.Latitude,
+                                 "longitude": truck.Longitude, "coordinates": truck.Location})
+            print('more than 5 km')
+            print(f"Truck {truck.locationId} is within 5km ({distance} km away)")
+
+    data_json = json.dumps(filtered_data)
     return jsonify(data_json)
+
+
+# only do this if you finish
+# Get the trucks in radius distance
+@app.route('/data', methods=['GET'])
+def get_trucks_radius():
+    radius = request.args.get("radius")
+
+
+
 
 if __name__ == '__main__':
     print('Starting here')
