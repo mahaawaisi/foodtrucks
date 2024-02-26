@@ -4,5 +4,17 @@ In this project a user is able to use their own coordinate or input coordinates 
 For each truck it also shows the user the distance to the truck from their coordinate, the menu, and its address. 
 
 ## Installation
+Install Node.js via https://nodejs.org/
+
+pip3 install flask
+pip3 install flask_sqlalchemy
+pip3 install pandas
+pip3 install sqlalchemy
+
+cd foodtrucks
 python3 app.py
-npm start (/frontend) 
+
+cd frontend
+npm install
+npm start
+
